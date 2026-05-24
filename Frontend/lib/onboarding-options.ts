@@ -27,4 +27,4 @@ export const RESPONSE_PREFERENCE_OPTIONS = [
   { value: 'detailed', label: 'Detailed When Needed', description: 'Comprehensive explanations' },
 ]
 
-export const TERMS_TEXT = `I confirm that I have the legal right to contact the recipients whose information I upload. I understand that RevAgent only provides AI-powered campaign orchestration and messaging tools. I am solely responsible for obtaining user consent, complying with WhatsApp, telecom, and data protection regulations, and ensuring lawful use of automated messaging, voice, or call campaigns.`
+export const TERMS_TEXT = `I confirm that I have the legal right to contact the recipients whose information I upload. I understand that OutreachX only provides AI-powered campaign orchestration and messaging tools. I am solely responsible for obtaining user consent, complying with WhatsApp, telecom, and data protection regulations, and ensuring lawful use of automated messaging, voice, or call campaigns.`

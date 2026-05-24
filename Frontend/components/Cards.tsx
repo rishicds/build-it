@@ -10,33 +10,33 @@ const Cards = () => {
   const features = [
     {
       icon: <FaStarOfLife className="text-white/80" />,
-      title: "All‑in‑one Campaign Creation",
-      description: "Create, configure, preview, and launch campaigns from a single, simple flow — no scattered tools."
+      title: "Personalized Multichannel Outreach",
+      description: "Launch personalized campaigns across WhatsApp, Voice, and Calls with one unified workflow."
     },
     {
       icon: <RiWechatChannelsLine className="text-white/80" />,
-      title: "Multi‑Channel Outreach",
-      description: "Reach users via Text, Voice, and Calls from one platform, with consistent messaging and control."
+      title: "RAG‑Powered AI Responses",
+      description: "Upload your documents and let OutreachX answer customer queries with grounded, accurate AI using RAG."
     },
     {
       icon: <FaWhatsapp className="text-white/80" />,
       title: "AI‑Powered WhatsApp Conversations",
-      description: "Users can ask questions on WhatsApp and get instant AI replies about your campaign — automatically."
+      description: "Contacts get instant, context-aware replies on WhatsApp powered by Gemini and LangGraph orchestration."
     },
     {
       icon: <TbDeviceDesktopAnalytics className="text-white/80" />,
-      title: "Real‑Time Analytics Dashboard",
-      description: "Track deliveries, replies, calls, and engagement live from one unified analytics page."
+      title: "Realtime Analytics",
+      description: "Monitor delivery, engagement, and call metrics in real time to optimize campaign performance."
     },
     {
       icon: <RiImageAddFill className="text-white/80" />,
-      title: "Fast Setup, Minimal Effort",
-      description: "Upload assets, documents, and contacts in minutes — designed for speed, not complexity."
+      title: "AI Voice Notes & Calls",
+      description: "Generate voice notes (Gemini TTS) and make AI phone calls (VAPI) with natural-sounding audio."
     },
     {
       icon: <MdAutoGraph className="text-white/80" />,
-      title: "Clean, Scalable, Product‑First Design",
-      description: "Built to handle large campaigns while keeping the experience simple, fast, and intuitive."
+      title: "Fast Onboarding & Compliance",
+      description: "Get started quickly with onboarding flows and built‑in compliance reminders for messaging."
     }
   ];
 
@@ -102,8 +102,10 @@ const Cards = () => {
               </div>
               
               <div className='flex justify-center relative z-10 pt-4'>
-                <div className='text-4xl text-white/60 hover:text-7xl transition-all duration-300 transform group-hover:scale-125'>
-                  {feature.icon}
+                <div className='text-5xl text-white/60'>
+                  <span className='inline-flex transition-transform duration-300 ease-out group-hover:scale-140 group-hover:-translate-y-1'>
+                    {feature.icon}
+                  </span>
                 </div>
               </div>
             </div>

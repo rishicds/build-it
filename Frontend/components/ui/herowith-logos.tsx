@@ -37,8 +37,8 @@ const FUIHeroWithBorders = ({
               Start AI‑Powered <i className="italic">Campaigns</i> from Anywhere
             </h1>
             <h2 className="text-md text-text-tertiary dark:text-dark-text-tertiary max-w-2xl text-pretty text-center md:text-lg font-sans">
-              RevAgent is an Agentic AI‑driven campaign automation platform
-              that autonomously launches, manages, and analyzes digital outreach
+                          OutreachX is an Agentic AI‑driven campaign automation platform
+                          that autonomously launches, manages, and analyzes digital outreach
               campaigns — all with a single click.{" "}
             </h2>
           </div>

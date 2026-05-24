@@ -33,16 +33,16 @@ Launch, manage, and analyze outreach campaigns across WhatsApp, Voice, and AI Ph
 
 ---
 
-## What is RevAgent?
+## What is OutreachX?
 
-**RevAgent** is your all-in-one AI partner for automated customer outreach. It simplifies how businesses connect with their audience by combining the power of advanced AI with popular communication channels like **WhatsApp**, **Voice Notes**, and **AI Phone Calls**.
+**OutreachX** is your all-in-one AI partner for automated customer outreach. It simplifies how businesses connect with their audience by combining the power of advanced AI with popular communication channels like **WhatsApp**, **Voice Notes**, and **AI Phone Calls**.
 
-Think of RevAgent as a tireless digital employee that can launch hundreds of personalized conversations at once, answer customer questions accurately using your own documents, and provide you with instant insights—all without you lifting a finger after the initial setup.
+Think of OutreachX as a tireless digital employee that can launch hundreds of personalized conversations at once, answer customer questions accurately using your own documents, and provide you with instant insights—all without you lifting a finger after the initial setup.
 
 ### How it helps you:
 - **Reach more people, faster**: Launch campaigns across multiple channels with just a few clicks.
 - **AI that actually talks**: Our AI doesn't just send static texts; it holds natural conversations and voice calls that feel human.
-- **Knowledge at its fingertips**: Upload your product PDFs or guides, and RevAgent will use that information to answer customer queries perfectly.
+- **Knowledge at its fingertips**: Upload your product PDFs or guides, and OutreachX will use that information to answer customer queries perfectly.
 - **Smart Inbox**: Manage all your WhatsApp replies in one place, with AI helping you respond to every message automatically.
 - **Real Results**: Watch your engagement grow with easy-to-read charts that show exactly how many people answered or replied.
 
@@ -472,9 +472,9 @@ npm run dev
 
 ## RAG (Retrieval-Augmented Generation) Implementation
 
-RevAgent includes a **complete RAG pipeline** that enables AI to answer customer questions using your uploaded documents. This transforms your PDFs, guides, and knowledge bases into a searchable intelligence layer for all AI responses.
+OutreachX includes a **complete RAG pipeline** that enables AI to answer customer questions using your uploaded documents. This transforms your PDFs, guides, and knowledge bases into a searchable intelligence layer for all AI responses.
 
-### How RAG Works in RevAgent
+### How RAG Works in OutreachX
 
 **RAG** combines information retrieval with generative AI:
 1. **Retrieve** — Search uploaded documents for relevant context
@@ -508,7 +508,7 @@ Save Metadata in Firestore
 
 ### Vector Storage Architecture
 
-RevAgent uses a **hybrid vector storage** approach:
+OutreachX uses a **hybrid vector storage** approach:
 
 #### Primary: Pinecone (Production-Ready)
 ```
@@ -542,7 +542,7 @@ users/{userId}
 
 ### Embedding Generation
 
-RevAgent uses **Google Gemini Embedding 2** for semantic understanding:
+OutreachX uses **Google Gemini Embedding 2** for semantic understanding:
 
 ```typescript
 // Each document chunk is converted to a 768-dimensional vector
@@ -562,7 +562,7 @@ const embedding = await embedText(chunkText);
 
 ### Semantic Search & Retrieval
 
-When a user asks a question, RevAgent searches for the most relevant document chunks:
+When a user asks a question, OutreachX searches for the most relevant document chunks:
 
 ```
 User Query
@@ -708,7 +708,7 @@ Delete (DELETE /docs/{documentKey})
 ```env
 # ── Vector Database (Pinecone) ────────────────────────────
 PINECONE_API_KEY=your-pinecone-api-key
-PINECONE_INDEX_NAME=revagent-embeddings
+PINECONE_INDEX_NAME=outreachx-embeddings
 
 # ── Embeddings (Gemini) ───────────────────────────────────
 GEMINI_API_KEY=your-gemini-api-key  # Also used for embeddings
@@ -747,23 +747,23 @@ OPENAI_API_KEY=your-openai-key  # For LangGraph orchestration
 
 ---
 
-## Conclusion: Problems Solved by RevAgent
+## Conclusion: Problems Solved by OutreachX
 
-RevAgent isn't just a communication tool; it's a solution to several critical bottlenecks in modern business outreach:
+OutreachX isn't just a communication tool; it's a solution to several critical bottlenecks in modern business outreach:
 
 ### 1. Breaking the Language Barrier (**Multilingual Support**)
-Outreach often fails when businesses can't speak the local language of their customers. By integrating **Sarvam AI** and **Gemini**, RevAgent enables seamless communication in multiple regional languages (like Hindi, Bengali, etc.) through both text and voice, ensuring your message is understood by everyone.
+Outreach often fails when businesses can't speak the local language of their customers. By integrating **Sarvam AI** and **Gemini**, OutreachX enables seamless communication in multiple regional languages (like Hindi, Bengali, etc.) through both text and voice, ensuring your message is understood by everyone.
 
 ### 2. Eliminating Manual Outreach (**WhatsApp Automation**)
-Manually sending WhatsApp messages to hundreds of contacts is slow and prone to errors. RevAgent automates the entire process—from initial campaign launch to handling inbound replies—saving hours of manual labor while maintaining a personal touch through AI-driven responses.
+Manually sending WhatsApp messages to hundreds of contacts is slow and prone to errors. OutreachX automates the entire process—from initial campaign launch to handling inbound replies—saving hours of manual labor while maintaining a personal touch through AI-driven responses.
 
 ### 3. Automated Data Intelligence (**Database Integration**)
-One of the biggest challenges in outreach is keeping track of interactions. RevAgent automatically syncs every message, call status, and customer engagement directly into **Firestore**. This means your database is always up-to-date with real-time data, allowing for better lead tracking and analytics without any manual data entry.
+One of the biggest challenges in outreach is keeping track of interactions. OutreachX automatically syncs every message, call status, and customer engagement directly into **Firestore**. This means your database is always up-to-date with real-time data, allowing for better lead tracking and analytics without any manual data entry.
 
 ### 4. Knowledge Accessibility
-Customers often have specific questions that generic bots can't answer. RevAgent solves this by allowing businesses to upload their own PDFs. The AI instantly learns from these documents, providing accurate, business-specific answers to any customer query on the fly.
+Customers often have specific questions that generic bots can't answer. OutreachX solves this by allowing businesses to upload their own PDFs. The AI instantly learns from these documents, providing accurate, business-specific answers to any customer query on the fly.
 
-By solving these core issues, RevAgent empowers businesses to scale their outreach effortlessly while building stronger, more localized connections with their customers.
+By solving these core issues, OutreachX empowers businesses to scale their outreach effortlessly while building stronger, more localized connections with their customers.
 ---
 
 ---

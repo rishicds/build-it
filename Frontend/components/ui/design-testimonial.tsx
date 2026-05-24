@@ -269,7 +269,7 @@ export function Testimonial() {
           >
             {[...Array(6)].map((_, i) => (
               <span key={i} className="mx-8 md:mx-10">
-                RevAgent
+                OutreachX
               </span>
             ))}
           </motion.div>

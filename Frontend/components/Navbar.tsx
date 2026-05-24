@@ -15,13 +15,13 @@ const Navbar = () => {
       <Link href="/" className='flex items-center gap-3 cursor-pointer hover:opacity-80 transition'>
         <Image 
           src="/favicon.svg" 
-          alt="RevAgent Logo" 
+          alt="OutreachX Logo" 
           width={20}
           height={20}
           className="w-6 h-6 sm:w-8 sm:h-8 md:w-8 md:h-8"
         />
         <span className="text-2xl sm:text-3xl font-sans text-white hover:text-white/80 transition">
-          RevAgent
+          OutreachX
         </span>
       </Link>
       <div className='flex justify-between gap-5 items-center'>

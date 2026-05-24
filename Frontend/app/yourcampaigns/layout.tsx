@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Your Campaigns | RevAgent',
+  title: 'Your Campaigns | OutreachX',
   description: 'Manage all your outreach campaigns',
 }
 

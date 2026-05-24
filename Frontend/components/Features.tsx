@@ -68,6 +68,7 @@ const FeatureSection = ({
             </h2>
 
             <p className="text-white/60 text-sm md:text-base leading-relaxed font-sans">{description}</p>
+
           </div>
 
           {/* Right side - Video */}
@@ -95,7 +96,7 @@ const Features = () => {
       <FeatureSection
         label="AI‑Driven Conversations"
         title="Let users ask, AI responds instantly."
-        description="Enable real‑time customer engagement through AI‑powered messaging. RevAgent uses intelligent conversation agents to respond instantly on WhatsApp, answer queries, and guide users toward meaningful actions."
+        description="Enable real‑time customer engagement through AI‑powered messaging. OutreachX uses intelligent conversation agents to respond instantly on WhatsApp, answer queries, and guide users toward meaningful actions."
         videoSrc="https://res.cloudinary.com/dlms9ihiw/video/upload/v1769075693/whatsapp_chat_ppwgfi.mp4"
       />
 

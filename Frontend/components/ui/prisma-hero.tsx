@@ -116,13 +116,13 @@ const PrismaHero = ({ isSignedIn, onCampaignClick }: PrismaHeroProps) => {
             <Link href="/" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
               <Image 
                 src="/favicon.svg" 
-                alt="RevAgent Logo" 
+                alt="OutreachX Logo" 
                 width={20}
                 height={20}
                 className="w-6 h-6 sm:w-8 sm:h-8 md:w-8 md:h-8"
               />
               <span className="text-xl sm:text-2xl font-sans text-[#E1E0CC] hover:text-[#E1E0CC]/80 transition">
-                RevAgent
+                OutreachX
               </span>
             </Link>
             <div className="flex items-center gap-3 sm:gap-5">
@@ -147,13 +147,13 @@ const PrismaHero = ({ isSignedIn, onCampaignClick }: PrismaHeroProps) => {
 
         {/* Top-left description */}
         <div className="absolute left-4 top-24 z-20 max-w-sm px-4 md:left-10 md:top-32 md:px-0 lg:max-w-md">
-          <motion.p
+            <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="font-sans text-sm leading-relaxed text-[#E1E0CC]/80 md:text-base lg:text-lg"
           >
-            RevAgent is an Agentic AI-driven campaign automation platform that autonomously launches, manages, and analyzes digital outreach campaigns — all with a single click.
+            OutreachX is an Agentic AI-driven campaign automation platform that autonomously launches, manages, and analyzes digital outreach campaigns — all with a single click.
           </motion.p>
         </div>
 
@@ -221,7 +221,7 @@ const PrismaHero = ({ isSignedIn, onCampaignClick }: PrismaHeroProps) => {
             className="font-medium leading-[0.85] tracking-[-0.07em] text-[26vw] sm:text-[24vw] md:text-[22vw] lg:text-[20vw] xl:text-[18vw] font-instrument"
             style={{ color: "#E1E0CC" }}
           >
-            <WordsPullUp text="RevAgent" showAsterisk />
+            <WordsPullUp text="OutreachX" showAsterisk />
           </h1>
         </div>
       </div>

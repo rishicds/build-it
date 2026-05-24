@@ -8,8 +8,8 @@ import {
 import '@fontsource/google-sans-flex';
 import Clarity from "./Clarity";
 export const metadata: Metadata = {
-  title: "RevAgent",
-  description: "Start your digital campaigns with RevAgent.",
+  title: "OutreachX",
+  description: "Start your digital campaigns with OutreachX.",
   icons: {
     icon: "/favicon.svg",
   },

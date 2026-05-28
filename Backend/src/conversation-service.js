@@ -1,7 +1,8 @@
 'use strict';
 
 const admin = require('firebase-admin');
-const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
+const { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } = require('@langchain/google-genai');
+const { Pinecone } = require('@pinecone-database/pinecone');
 const axios = require('axios');
 const { updateAnalysisWhatsApp } = require('./analysis-service');
 
@@ -52,8 +53,43 @@ function getModel() {
     model: 'gemini-2.5-flash',
     apiKey: apiKey || '',
     temperature: 0.1,
-    apiVersion: 'v1beta',
   });
+}
+
+// ── Embeddings + Pinecone ───────────────────────────────────────────────────
+let _embeddingModel = null;
+let _pineconeIndex = null;
+
+function getEmbeddingModel() {
+  if (_embeddingModel) return _embeddingModel;
+
+  const apiKey =
+    process.env.GEMINI_WHATSAPP_API_KEY || process.env.GEMINI_API_KEY || '';
+  if (!apiKey) {
+    console.warn('[Conv-Service] ⚠️ Missing Gemini API key for embeddings');
+  }
+
+  _embeddingModel = new GoogleGenerativeAIEmbeddings({
+    apiKey,
+    model: 'gemini-embedding-2',
+  });
+
+  return _embeddingModel;
+}
+
+function getPineconeIndex() {
+  if (_pineconeIndex) return _pineconeIndex;
+
+  const apiKey = process.env.PINECONE_API_KEY;
+  const indexName = process.env.PINECONE_INDEX_NAME;
+
+  if (!apiKey || !indexName) {
+    throw new Error('Missing Pinecone configuration (PINECONE_API_KEY, PINECONE_INDEX_NAME)');
+  }
+
+  const client = new Pinecone({ apiKey });
+  _pineconeIndex = client.Index(indexName);
+  return _pineconeIndex;
 }
 
 // ── Phone Normalizer ─────────────────────────────────────────────────────────
@@ -234,6 +270,12 @@ async function loadCampaignContext(userId, campaignId) {
 
     const fullContext = [title, description, documents, assets].filter(Boolean).join('\n\n');
     console.log(`   ✅ Total context: ${fullContext.length} chars`);
+    console.log('   🧾 RAW CONTEXT START');
+    console.log(`   Title: ${title || '(empty)'}`);
+    console.log(`   Description: ${description || '(empty)'}`);
+    console.log(`   Documents: ${documents || '(empty)'}`);
+    console.log(`   Assets: ${assets || '(empty)'}`);
+    console.log('   🧾 RAW CONTEXT END');
 
     return { title, description, documents, assets, fullContext };
   } catch (error) {
@@ -241,6 +283,215 @@ async function loadCampaignContext(userId, campaignId) {
     console.error(error.stack);
     return { title: '', description: '', documents: '', assets: '', fullContext: '' };
   }
+}
+
+// ── Pinecone namespace loader (vectoruser store) ───────────────────────────
+async function loadPineconeNamespace(userId, campaignId) {
+  const db = getDb();
+  try {
+    const docSnap = await db
+      .collection('vectoruser')
+      .doc(userId)
+      .collection('projects')
+      .doc(campaignId)
+      .get();
+
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      if (data?.pineconeNamespace) {
+        return data.pineconeNamespace;
+      }
+    }
+  } catch (error) {
+    console.warn('[Conv-Service] ⚠️ Failed to load pinecone namespace:', error.message);
+  }
+
+  return `project_${campaignId}`;
+}
+
+function extractContextFromMetadata(metadata) {
+  if (!metadata) return '';
+
+  const candidates = [
+    metadata.text,
+    metadata.chunk,
+    metadata.content,
+    metadata.pageContent,
+    metadata.body,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return '';
+}
+
+async function getChunkTextFromFirestore(userId, campaignId, fileName, chunkIndex) {
+  if (!fileName || chunkIndex === undefined || chunkIndex === null) return '';
+  const db = getDb();
+  try {
+    const chunksSnap = await db
+      .collection('users')
+      .doc(userId)
+      .collection('campaigns')
+      .doc(campaignId)
+      .collection('chunks')
+      .where('docName', '==', fileName)
+      .where('index', '==', Number(chunkIndex))
+      .get();
+
+    if (!chunksSnap.empty) {
+      const data = chunksSnap.docs[0].data();
+      return data.chunkText || '';
+    }
+  } catch (error) {
+    console.warn(`[Conv-Service] ⚠️ Failed to fetch chunk from Firestore:`, error.message);
+  }
+  return '';
+}
+
+// ── Fetch Q&A pairs from Firestore qna subcollection ───────────────────────
+/**
+ * Loads all question-answer pairs stored under:
+ *   users/{userId}/campaigns/{campaignId}/qna/{docId}
+ * Each document is expected to have at least { question, answer } fields.
+ * Returns a formatted string ready to be injected into the prompt, or '' if empty.
+ */
+async function fetchQnaFromFirestore(userId, campaignId) {
+  const db = getDb();
+  try {
+    const qnaSnap = await db
+      .collection('users')
+      .doc(userId)
+      .collection('campaigns')
+      .doc(campaignId)
+      .collection('qna')
+      .get();
+
+    if (qnaSnap.empty) {
+      console.log(`[Conv-Service]    🔴 QnA collection is empty for campaign ${campaignId}`);
+      return '';
+    }
+
+    const pairs = [];
+    qnaSnap.docs.forEach((doc) => {
+      const d = doc.data();
+      const q = d.question || d.q || '';
+      const a = d.answer   || d.a || '';
+      if (q && a) {
+        pairs.push(`Q: ${q}\nA: ${a}`);
+      }
+    });
+
+    console.log(`[Conv-Service]    ✅ QnA: loaded ${pairs.length} pairs from Firestore`);
+    return pairs.join('\n\n');
+  } catch (error) {
+    console.warn(`[Conv-Service]    ⚠️ fetchQnaFromFirestore failed:`, error.message);
+    return '';
+  }
+}
+
+async function retrieveRagContext(userId, campaignId, question) {
+  const namespace = await loadPineconeNamespace(userId, campaignId);
+  const index = getPineconeIndex();
+  const embeddings = getEmbeddingModel();
+
+  console.log(`[Conv-Service]    🔍 RAG RETRIEVAL START`);
+  console.log(`[Conv-Service]       Namespace: ${namespace}`);
+  console.log(`[Conv-Service]       Question: "${question}"`);
+
+  const vector = await embeddings.embedQuery(question);
+  console.log(`[Conv-Service]       ✓ Question embedded (vector dimension: ${vector.length})`);
+
+  const results = await index
+    .namespace(namespace)
+    .query({ vector, topK: 6, includeMetadata: true });
+
+  const matches = results.matches || [];
+  console.log(`[Conv-Service]    📊 Pinecone results: ${matches.length} total matches`);
+  console.log(`[Conv-Service]    🔍 Resolving match texts from Firestore chunks collection...`);
+
+  // Fetch all chunk contents from Firestore in parallel
+  const matchesWithContent = await Promise.all(
+    matches.map(async (match, idx) => {
+      const metadata = match.metadata || {};
+      let content = extractContextFromMetadata(metadata);
+      
+      // Fallback to Firestore if Pinecone metadata doesn't contain the text content
+      if (!content && metadata.fileName && metadata.chunkIndex !== undefined) {
+        content = await getChunkTextFromFirestore(
+          userId,
+          campaignId,
+          metadata.fileName,
+          metadata.chunkIndex
+        );
+      }
+      
+      return {
+        ...match,
+        content: content || '',
+      };
+    })
+  );
+
+  console.log(`[Conv-Service]    📋 All Matches:\n`);
+  
+  // Log all matches with scores
+  matchesWithContent.forEach((match, idx) => {
+    const score = (match.score ?? 0).toFixed(3);
+    const chunkId = match.id || `chunk_${idx}`;
+    const metadata = match.metadata || {};
+    const preview = match.content.substring(0, 80);
+    const metaKeys = Object.keys(metadata).join(', ');
+    
+    console.log(`[Conv-Service]       [${idx + 1}] Chunk ID: ${chunkId}`);
+    console.log(`[Conv-Service]           Score: ${score} ${parseFloat(score) >= 0.2 ? '✅ RELEVANT' : '❌ FILTERED'}`);
+    console.log(`[Conv-Service]           Metadata keys: ${metaKeys || '(none)'}`);
+    console.log(`[Conv-Service]           Preview: "${preview}${preview.length > 80 ? '...' : ''}"`);
+    console.log(`[Conv-Service]    `);
+  });
+
+  const RELEVANCE_THRESHOLD = 0.2;
+  const relevant = matchesWithContent.filter((match) => (match.score ?? 0) >= RELEVANCE_THRESHOLD);
+  
+  console.log(`[Conv-Service]    ✅ Filtering by threshold (${RELEVANCE_THRESHOLD}): ${relevant.length}/${matches.length} passed`);
+  console.log(`[Conv-Service]    📌 Selected Chunks:\n`);
+  
+  const contextChunks = relevant
+    .map((match, idx) => {
+      const chunkId = match.id || `chunk_${idx}`;
+      const score = (match.score ?? 0).toFixed(3);
+      const content = match.content;
+      
+      console.log(`[Conv-Service]       Chunk ${idx + 1}/${relevant.length}: ${chunkId}`);
+      console.log(`[Conv-Service]           Score: ${score}`);
+      console.log(`[Conv-Service]           Length: ${content.length} chars`);
+      console.log(`[Conv-Service]           Content preview: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`);
+      console.log(`[Conv-Service]    `);
+      
+      return content;
+    })
+    .filter(Boolean);
+
+  const finalContext = contextChunks.join('\n\n');
+  console.log(`[Conv-Service]    🎯 RAG CONTEXT READY`);
+  console.log(`[Conv-Service]       Total chunks used: ${contextChunks.length}`);
+  console.log(`[Conv-Service]       Combined context length: ${finalContext.length} chars`);
+  console.log(`[Conv-Service]    🔍 RAG RETRIEVAL END\n`);
+
+  return {
+    namespace,
+    context: finalContext,
+    matchCount: relevant.length,
+    chunkDetails: relevant.map((match, idx) => ({
+      chunkId: match.id || `chunk_${idx}`,
+      score: (match.score ?? 0).toFixed(3),
+      content: match.content,
+    })),
+  };
 }
 
 // ── Load chat history (last 20 exchanges) ────────────────────────────────────
@@ -293,8 +544,12 @@ async function loadChatHistory(userId, campaignId, contactId) {
  *   - AI reply as sender:'campaign'
  * Also updates the contact document's lastMessage/lastMessageTime/unreadCount.
  */
-async function saveChatHistory(userId, campaignId, contactId, userMessage, aiReply, phone, contactName) {
+async function saveChatHistory(userId, campaignId, contactId, userMessage, aiReply, phone, contactName, options = {}) {
   const db = getDb();
+  const userType = options.userType || 'text';
+  const aiType = options.aiType || 'text';
+  const userMeta = options.userMeta || {};
+  const aiMeta = options.aiMeta || {};
 
   const contactRef = db
     .collection('users')
@@ -321,9 +576,10 @@ async function saveChatHistory(userId, campaignId, contactId, userMessage, aiRep
     await contactRef.collection('messages').doc(userMsgId).set({
       id: userMsgId,
       sender: 'user',
-      type: 'text',
+      type: userType,
       content: userMessage,
       contactPhone: phone,
+      meta: userMeta,
       timestamp: new Date().toISOString(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -333,8 +589,9 @@ async function saveChatHistory(userId, campaignId, contactId, userMessage, aiRep
     await contactRef.collection('messages').doc(aiMsgId).set({
       id: aiMsgId,
       sender: 'campaign',
-      type: 'text',
+      type: aiType,
       content: aiReply,
+      meta: aiMeta,
       timestamp: new Date().toISOString(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -388,42 +645,97 @@ async function generateCampaignReply(userId, campaignId, contactId, message) {
     console.log(`[Conv-Service]    🤖 Generating AI reply (CAMPAIGN-CONTEXT)...`);
     console.log(`[Conv-Service]       User: ${userId}, Campaign: ${campaignId}, Contact: ${contactId}`);
 
+    // Load static context + chat history first (fast)
     const context = await loadCampaignContext(userId, campaignId);
-    const { title, description, documents, assets, fullContext } = context;
-    
-    console.log(`[Conv-Service]       Context loaded: title=${title.length > 0 ? '✓' : '✗'}, desc=${description.length} chars, docs=${documents.length} chars`);
+    // ⚠️  Destructure BOTH title AND documents — the documents string already contains
+    //     any Q&A pairs the user embedded in their uploaded files.
+    const { title, documents: campaignDocuments } = context;
+    console.log(`[Conv-Service]       Context loaded: title=${title.length > 0 ? '✓' : '✗'}, docs=${campaignDocuments?.length ?? 0} chars`);
 
     const history = await loadChatHistory(userId, campaignId, contactId);
     console.log(`[Conv-Service]       History: ${history.length} exchanges`);
 
-    // 🔥 CRITICAL: Strong prompt that forces context-based answers
-    const prompt = `You are a professional assistant for this specific campaign.
+    // Fetch RAG (Pinecone) + QnA (Firestore) in PARALLEL for speed
+    console.log(`[Conv-Service]       🔄 Fetching RAG context + QnA pairs in parallel...`);
+    const [rag, qnaContext] = await Promise.all([
+      retrieveRagContext(userId, campaignId, message),
+      fetchQnaFromFirestore(userId, campaignId),
+    ]);
 
-=== CAMPAIGN CONTEXT (Your ONLY source of information) ===
-Campaign Title: ${title}
-${description}
-${documents ? `\nDetails:\n${documents}` : ''}
-${assets ? `\nResources:\n${assets}` : ''}
-=== END CONTEXT ===
+    console.log(`[Conv-Service]       RAG context : ${rag.context.length} chars, matches=${rag.matchCount}`);
+    console.log(`[Conv-Service]       QnA context : ${qnaContext.length} chars`);
+
+    // Display chunk sources in detail
+    if (rag.chunkDetails && rag.chunkDetails.length > 0) {
+      console.log(`[Conv-Service]       📦 CHUNK SOURCES:\n`);
+      rag.chunkDetails.forEach((chunk, idx) => {
+        console.log(`[Conv-Service]           [${idx + 1}] ${chunk.chunkId}`);
+        console.log(`[Conv-Service]               Similarity Score: ${chunk.score}`);
+        console.log(`[Conv-Service]               Source Content: "${chunk.content.substring(0, 120)}${chunk.content.length > 120 ? '...' : ''}"\n`);
+      });
+    }
+
+    // Need at least one knowledge source to proceed
+    if (!rag.context && !qnaContext && !campaignDocuments) {
+      return 'Sorry, I do not have information related to that.';
+    }
+
+    // ── Build knowledge blocks (only include non-empty ones) ─────────────────
+    //
+    //  1. CAMPAIGN DOCUMENTS — the full extracted text from uploaded files.
+    //     This is the MOST RELIABLE source because it bypasses Pinecone entirely.
+    //     It already contains any Q&A pairs the user typed into their documents.
+    //
+    //  2. RAG SNIPPETS — semantically retrieved chunks from Pinecone.
+    //     Useful for large corpora; may be empty if chunk retrieval from
+    //     Firestore failed (known issue when chunk field names mismatch).
+    //
+    //  3. DEDICATED Q&A PAIRS — from the campaign's /qna Firestore subcollection
+    //     (if the user stores them separately).
+
+    const docsBlock = campaignDocuments
+      ? `=== CAMPAIGN DOCUMENTS (complete extracted text, includes any Q&A pairs) ===\n${campaignDocuments}\n=== END CAMPAIGN DOCUMENTS ===`
+      : '';
+
+    const ragBlock = rag.context
+      ? `=== ADDITIONAL RAG SNIPPETS (semantically matched chunks) ===\n${rag.context}\n=== END RAG SNIPPETS ===`
+      : '';
+
+    const qnaBlock = qnaContext
+      ? `=== DEDICATED Q&A PAIRS ===\n${qnaContext}\n=== END DEDICATED Q&A PAIRS ===`
+      : '';
+
+    const knowledgeSection = [docsBlock, ragBlock, qnaBlock].filter(Boolean).join('\n\n');
+
+    console.log(`[Conv-Service]       📚 Knowledge blocks: docs=${docsBlock.length}, rag=${ragBlock.length}, qna=${qnaBlock.length} chars`);
+
+    // 🔥 CRITICAL: Strong prompt that forces context-based answers
+    const prompt = `You are a helpful, sales-oriented assistant for the "${title}" campaign.
+
+Below are your knowledge sources. Use ALL of them to answer the user's question.
+The CAMPAIGN DOCUMENTS are your primary reference — they contain the full event/product details and any Q&A pairs embedded in the documents.
+Use RAG SNIPPETS and Q&A PAIRS as additional confirmation.
+
+${knowledgeSection}
 
 CRITICAL RULES:
-1. ONLY answer questions about: "${title}" and related topics
-2. Base ALL answers on the campaign information above
-3. If a question is unrelated to the campaign, POLITELY decline and redirect to the campaign topic
-4. Never provide information outside of the campaign context
-5. Be specific and practical in your answers
+1. Answer using ONLY information from the knowledge blocks above
+2. Do NOT say "based on the context", "based on the documents", or reveal internal source names
+3. If the answer exists ANYWHERE in the knowledge blocks, use it — do NOT say you don't have information
+4. If the answer truly cannot be found in any knowledge block, say you don't have that detail and ask one short follow-up
+5. Keep the tone warm, confident, and concise
 
 Recent conversation history:
 ${history.length > 0 ? history.map((h) => `Q: ${h.input}\nA: ${h.output}`).join('\n\n') : 'No previous conversation'}
 
 User question: "${message}"
 
-RESPOND NOW - Stay within the campaign context. Remember: ONLY talk about "${title}":`;
+RESPOND NOW - Use the knowledge above to answer clearly.`;
 
     const model = getModel();
     console.log(`[Conv-Service]       📝 Prompt length: ${prompt.length} chars`);
     console.log(`[Conv-Service]       🔄 Calling Gemini API (CONTEXT-BASED)...`);
-    
+
     const result = await model.invoke(prompt);
     const aiReply = result.content?.toString().trim() || 'I\'m here to help with questions about this campaign.';
 
@@ -558,5 +870,6 @@ module.exports = {
   handleWhatsAppMessage,
   findLatestCampaignByPhone,
   generateCampaignReply,
+  saveChatHistory,
   sendWhatsAppReply,
 };

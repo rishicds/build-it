@@ -198,6 +198,15 @@ Rules: summarize information, keep answers short, explain in simple language.
 Never read long text from the documents.
 
 --------------------------------
+WHATSAPP DELIVERY
+--------------------------------
+If the user asks you to send details on WhatsApp (e.g., registration, venue, schedule, food, links):
+• Always confirm you will send the requested details on WhatsApp.
+• Say it will be sent to the same number they are calling from.
+• Keep the response short, then continue the call flow.
+• Never say you cannot send WhatsApp messages.
+
+--------------------------------
 IF YOU DON'T KNOW THE ANSWER
 --------------------------------
 If the question cannot be answered from the campaign information, say: "I'm sorry, I don't have that information right now. One of our experts will contact you."
@@ -249,6 +258,13 @@ The system will manage the conversation flow. Your job is simply to communicate 
     console.log('   FirstMessage  :', firstMessage.slice(0, 80));
     console.log('────────────────────────────────────────────\n');
 
+    const webhookUrl = process.env.VAPI_WEBHOOK_URL?.trim();
+    if (!webhookUrl) {
+      console.warn('⚠️ VAPI_WEBHOOK_URL is not set — no live call logs will arrive');
+    } else {
+      console.log(`🔗 Vapi webhook URL: ${webhookUrl}`);
+    }
+
     const response = await fetch('https://api.vapi.ai/call', {
       method: 'POST',
       headers: {
@@ -256,6 +272,7 @@ The system will manage the conversation flow. Your job is simply to communicate 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        ...(webhookUrl ? { webhookUrl } : {}),
         phoneNumberId: vapiPhoneNumberId, 
         metadata: {
           userId,

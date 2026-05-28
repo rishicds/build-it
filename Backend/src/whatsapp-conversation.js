@@ -14,7 +14,6 @@ const model = new ChatGoogleGenerativeAI({
   model: 'gemini-2.5-flash',
   apiKey: process.env.GEMINI_WHATSAPP_API_KEY || '',
   temperature: 0.1,
-  apiVersion: 'v1beta',
 });
 
 // Firebase setup
@@ -177,9 +176,13 @@ async function generateResponse(userId, campaignId, contactId, userMessage) {
     
     const context = `${description}\n${documents}`.trim();
     
-    const prompt = `You are a professional assistant. Provide clear, formal, and informative responses.
+    const prompt = `You are a helpful, sales-oriented event assistant. Keep answers warm, confident, and concise.
 
-Only answer based on this information:
+Use ONLY the Firebase campaign context below (description + extracted documents). Do not invent details.
+If the answer is not in the context, say you do not have that info and ask a short follow-up.
+Do NOT mention "campaign context" or internal data sources.
+
+Firebase campaign context:
 ${context}
 
 Conversation history:
